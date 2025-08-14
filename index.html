@@ -1,707 +1,607 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VenzAi - Telegram-style AI Chat</title>
+    <title>VenzAi - Chat AI</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-        
         :root {
-            --venzai-primary: #6d28d9;
-            --venzai-dark: #1e1e1e;
-            --venzai-secondary: #2d3748;
+            --primary: #0088cc;
+            --secondary: #182533;
+            --background: #0e1621;
+            --message-bg: #182533;
+            --user-message-bg: #2b5278;
         }
         
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f5f5f5;
+            background-color: var(--background);
+            color: #e1e1e1;
             height: 100vh;
             margin: 0;
             overflow: hidden;
         }
-        
-        .sidebar {
-            transform: translateX(-100%);
-            transition: transform 0.3s ease-in-out;
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-        
-        .sidebar-open {
-            transform: translateX(0);
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
-        
-        .chat-message {
-            opacity: 0;
-            transform: translateY(10px);
-            animation: messageAppear 0.3s forwards;
+
+        .message {
+            animation: fadeIn 0.3s ease-out;
         }
-        
-        @keyframes messageAppear {
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+
+        .typing-indicator span {
+            animation: pulse 1.5s infinite ease-in-out;
         }
-        
-        .typing-indicator {
-            display: flex;
-            align-items: center;
-        }
-        
-        .typing-dot {
-            width: 8px;
-            height: 8px;
-            margin: 0 2px;
-            background-color: var(--venzai-primary);
-            border-radius: 50%;
-            opacity: 0.4;
-            animation: typingAnimation 1.4s infinite ease-in-out;
-        }
-        
-        .typing-dot:nth-child(1) {
-            animation-delay: 0s;
-        }
-        
-        .typing-dot:nth-child(2) {
+
+        .typing-indicator span:nth-child(2) {
             animation-delay: 0.2s;
+            margin-left: 4px;
+            margin-right: 4px;
         }
-        
-        .typing-dot:nth-child(3) {
+
+        .typing-indicator span:nth-child(3) {
             animation-delay: 0.4s;
         }
-        
-        @keyframes typingAnimation {
-            0%, 60%, 100% {
-                transform: translateY(0);
-                opacity: 0.4;
-            }
-            30% {
-                transform: translateY(-5px);
-                opacity: 1;
-            }
+
+        /* Sidebar animations */
+        .slide-in {
+            animation: slideIn 0.3s ease-out;
         }
-        
-        .image-preview {
-            transition: all 0.3s ease;
+
+        @keyframes slideIn {
+            from { transform: translateX(-100%); }
+            to { transform: translateX(0); }
         }
-        
-        .image-preview:hover {
-            transform: scale(1.05);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+
+        /* Button hover effect */
+        .btn-hover:hover {
+            transform: scale(1.03);
+            transition: transform 0.2s ease;
         }
-        
-        .pulse {
-            animation: pulse 2s infinite;
-        }
-        
-        @keyframes pulse {
-            0% {
-                box-shadow: 0 0 0 0 rgba(109, 40, 217, 0.7);
-            }
-            70% {
-                box-shadow: 0 0 0 10px rgba(109, 40, 217, 0);
-            }
-            100% {
-                box-shadow: 0 0 0 0 rgba(109, 40, 217, 0);
-            }
+
+        /* Drop shadow for messages */
+        .message-shadow {
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
     </style>
 </head>
-<body class="flex">
-    <!-- Mobile Sidebar Toggle -->
-    <button id="sidebarToggle" class="md:hidden fixed top-4 left-4 z-50 bg-purple-600 text-white p-2 rounded-full shadow-lg">
-        <i class="fas fa-bars"></i>
-    </button>
-    
+<body class="flex h-screen overflow-hidden">
     <!-- Sidebar -->
-    <div id="sidebar" class="sidebar fixed md:relative md:translate-x-0 w-64 h-full bg-gray-900 text-white flex flex-col z-40">
-        <!-- Sidebar Header -->
-        <div class="p-4 border-b border-gray-700 flex items-center">
-            <div class="bg-gradient-to-r from-purple-600 to-blue-500 w-8 h-8 rounded-full flex items-center justify-center text-white font-bold">
-                V
+    <div id="sidebar" class="md:w-16 lg:w-64 bg-gray-900 h-full text-white flex-shrink-0 overflow-y-auto border-r border-gray-800">
+        <div class="p-4 flex flex-col h-full">
+            <!-- Logo and Brand -->
+            <div class="flex items-center space-x-3 justify-center lg:justify-start mb-8">
+                <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
+                    <span class="font-bold">V</span>
+                </div>
+                <h1 class="text-xl font-bold hidden lg:block">VenzAi</h1>
             </div>
-            <h1 class="ml-3 text-xl font-bold">VenzAi</h1>
-        </div>
-        
-        <!-- New Chat Button -->
-        <button id="newChatBtn" class="mx-3 my-4 p-2 bg-purple-600 hover:bg-purple-700 rounded-lg flex items-center justify-center font-medium transition-all duration-300">
-            <i class="fas fa-plus mr-2"></i> New Chat
-        </button>
-        
-        <!-- Chat History -->
-        <div class="flex-1 overflow-y-auto px-2">
-            <h3 class="px-2 py-2 text-gray-400 uppercase text-xs font-semibold">Recent Chats</h3>
-            <div id="chatHistory" class="space-y-1">
-                <!-- Chat history items will be added here dynamically -->
+
+            <!-- New Chat Button -->
+            <button id="new-chat-btn" class="btn-hover bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-full mb-6 flex items-center justify-center lg:justify-start transition duration-200 ease-in-out">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                <span class="hidden lg:inline">New Chat</span>
+            </button>
+
+            <!-- Navigation -->
+            <div class="flex-1 overflow-y-auto mb-4">
+                <div id="history-btn" class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 cursor-pointer transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span class="hidden lg:inline">History</span>
+                </div>
+                <div id="about-btn" class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 cursor-pointer transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span class="hidden lg:inline">About</span>
+                </div>
             </div>
-        </div>
-        
-        <!-- Sidebar Footer -->
-        <div class="p-4 border-t border-gray-700">
-            <div id="aboutBtn" class="p-2 hover:bg-gray-800 rounded-lg cursor-pointer flex items-center">
-                <i class="fas fa-info-circle mr-2 text-purple-400"></i>
-                <span>About</span>
-            </div>
-            <div class="p-2 hover:bg-gray-800 rounded-lg cursor-pointer flex items-center">
-                <i class="fas fa-cog mr-2 text-gray-400"></i>
-                <span>Settings</span>
+
+            <!-- API Key Input -->
+            <div class="mt-auto mb-4 p-2 hidden lg:block">
+                <div class="text-xs text-gray-400 mb-1">Groq API Key</div>
+                <input id="api-key" type="password" placeholder="Enter your API key" class="w-full bg-gray-800 rounded p-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
         </div>
     </div>
-    
+
     <!-- Main Chat Area -->
-    <div class="flex-1 flex flex-col h-screen bg-gray-100">
+    <div class="flex-1 flex flex-col h-full overflow-hidden bg-gray-900">
         <!-- Chat Header -->
-        <div class="bg-white p-4 shadow-sm flex items-center justify-between border-b">
-            <div class="flex items-center">
-                <div class="bg-gradient-to-r from-purple-600 to-blue-500 w-8 h-8 rounded-full flex items-center justify-center text-white font-bold">
-                    V
-                </div>
-                <h2 class="ml-3 font-semibold" id="currentChatTitle">New Chat</h2>
-            </div>
-            <div class="flex items-center">
-                <div id="modelSelectContainer" class="mr-3 hidden md:block">
-                    <select id="modelSelect" class="bg-gray-100 border border-gray-300 text-gray-700 py-1 px-2 rounded focus:outline-none focus:ring-1 focus:ring-purple-500">
-                        <option value="llama3-8b-8192">Llama3 8B</option>
-                        <option value="llama3-70b-8192">Llama3 70B</option>
-                        <option value="mixtral-8x7b-32768">Mixtral 7B</option>
-                    </select>
-                </div>
-                <button id="settingsBtn" class="text-gray-500 hover:text-purple-600 p-1">
-                    <i class="fas fa-cog"></i>
+        <div id="chat-header" class="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <button id="menu-button" class="md:hidden">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
                 </button>
+                <h2 id="current-chat-title" class="text-lg font-semibold">New Chat</h2>
+            </div>
+            <div class="relative">
+                <select id="model-select" class="bg-gray-700 text-white rounded p-2 text-sm focus:outline-none">
+                    <option value="mixtral-8x7b-32768">Mixtral-8x7b</option>
+                    <option value="llama-3.3-70b-versatile
+">llama-3.3-70b-versatile
+</option>
+                    <option value="gemma-7b-it">Gemma-7b</option>
+                </select>
             </div>
         </div>
-        
+
         <!-- Messages Container -->
-        <div id="messagesContainer" class="flex-1 overflow-y-auto p-4 bg-gray-50">
-            <div class="max-w-3xl mx-auto space-y-4">
-                <!-- Welcome message -->
-                <div class="chat-message flex justify-center" style="animation-delay: 0.2s">
-                    <div class="bg-white p-4 rounded-lg shadow-md w-full">
-                        <img src="https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/0ee0ae60-e72a-4eb7-ba19-1e1389df90ab.png" alt="Welcome to VenzAi - Modern AI chat interface with purple branding and abstract technological elements in the background" class="w-full h-auto rounded mb-3">
-                        <h2 class="text-xl font-bold text-purple-600 mb-2">Welcome to VenzAi!</h2>
-                        <p class="text-gray-700">Start chatting with the AI by typing your message below. You can also upload images or take photos to include them in your conversation.</p>
-                        <div class="mt-4 p-3 bg-purple-50 rounded-lg border border-purple-100">
-                            <p class="text-sm text-gray-600">Don't forget to enter your Groq API key to start using the AI.</p>
-                        </div>
-                    </div>
+        <div id="messages" class="flex-1 overflow-y-auto p-4 space-y-4">
+            <!-- Sample welcome message -->
+            <div class="message message-shadow flex flex-col space-y-1 max-w-[85%]">
+                <div class="bg-gray-700 text-white p-4 rounded-lg rounded-tl-none">
+                    <p>Hai! Saya VenzAi, asisten AI Anda. Bagaimana saya bisa membantu Anda hari ini?</p>
                 </div>
+                <div class="text-xs text-gray-400 ml-1">Just now</div>
             </div>
         </div>
-        
-        <!-- Message Input Area -->
-        <div class="bg-white border-t p-4">
-            <div class="max-w-3xl mx-auto">
-                <!-- API Key Input (only shown if not set) -->
-                <div id="apiKeyContainer" class="mb-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                    <label for="apiKeyInput" class="block text-sm font-medium text-yellow-800 mb-1">Groq API Key</label>
-                    <div class="flex">
-                        <input id="apiKeyInput" type="password" placeholder="Enter your Groq API key..." class="flex-1 px-3 py-2 border border-yellow-300 rounded-l-lg focus:outline-none focus:ring-1 focus:ring-yellow-500">
-                        <button id="saveApiKeyBtn" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-r-lg transition-colors">Save</button>
-                    </div>
-                    <p class="mt-1 text-xs text-yellow-600">Your API key is stored locally in your browser and never sent to our servers.</p>
-                </div>
-                
-                <!-- Image Preview -->
-                <div id="imagePreviewContainer" class="mb-3 hidden">
-                    <div class="flex items-center space-x-2 overflow-x-auto pb-2">
-                        <div class="relative group">
-                            <img id="previewImage" src="#" alt="Preview of the selected image" class="h-20 w-auto rounded-lg object-cover border border-gray-200 image-preview">
-                            <button class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" id="removeImageBtn">
-                                <i class="fas fa-times text-xs"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Input Area -->
+
+        <!-- Typing Indicator (hidden by default) -->
+        <div id="typing-indicator" class="hidden px-4 pb-2">
+            <div class="typing-indicator flex items-center">
+                <div class="inline-block h-2 w-2 bg-blue-500 rounded-full" style="animation-delay: 0s"></div>
+                <div class="inline-block h-2 w-2 bg-blue-500 rounded-full" style="animation-delay: 0.2s"></div>
+                <div class="inline-block h-2 w-2 bg-blue-500 rounded-full" style="animation-delay: 0.4s"></div>
+                <span class="ml-2 text-sm text-gray-400">VenzAi is typing...</span>
+            </div>
+        </div>
+
+        <!-- Chat Input -->
+        <div class="p-4 border-t border-gray-800">
+            <div class="flex items-end space-x-2">
+                <!-- Attachment Button -->
                 <div class="relative">
-                    <div class="absolute left-3 top-3 flex space-x-1">
-                        <button id="imageUploadBtn" class="text-gray-500 hover:text-purple-600 p-1">
-                            <i class="fas fa-image"></i>
+                    <button id="attach-btn" class="p-2 text-gray-400 hover:text-blue-500 focus:outline-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                        </svg>
+                    </button>
+                    <!-- Attachment Menu -->
+                    <div id="attach-menu" class="hidden absolute bottom-full left-0 mb-2 w-48 bg-gray-800 rounded-lg shadow-lg z-10 overflow-hidden">
+                        <button id="upload-image" class="w-full px-4 py-2 text-left hover:bg-gray-700 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            Upload Image
                         </button>
-                        <button id="cameraBtn" class="text-gray-500 hover:text-purple-600 p-1">
-                            <i class="fas fa-camera"></i>
+                        <button id="take-photo" class="w-full px-4 py-2 text-left hover:bg-gray-700 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            Take Photo
                         </button>
-                        <input type="file" id="fileInput" accept="image/*" class="hidden">
-                        <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
                     </div>
-                    <textarea id="messageInput" rows="1" placeholder="Type a message..." class="w-full pl-10 pr-20 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-500 resize-none" style="min-height: 50px;"></textarea>
-                    <button id="sendBtn" class="absolute right-3 bottom-3 bg-purple-600 hover:bg-purple-700 text-white p-2 rounded-lg transition-colors">
-                        <i class="fas fa-paper-plane"></i>
-                    </button>
+                    <!-- Input for file upload (hidden) -->
+                    <input type="file" id="file-input" accept="image/*" class="hidden">
                 </div>
                 
-                <div class="flex justify-center mt-2">
-                    <p class="text-xs text-gray-500">VenzAi uses Groq's lightning-fast AI models</p>
+                <!-- Message Input -->
+                <div class="flex-1 relative">
+                    <textarea id="message-input" rows="1" placeholder="Type a message..." class="w-full bg-gray-800 text-white rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" style="min-height: 44px; max-height: 150px;"></textarea>
+                    <button id="send-btn" class="absolute right-3 bottom-3 text-blue-500 hover:text-blue-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                        </svg>
+                    </button>
                 </div>
             </div>
         </div>
     </div>
-    
-    <!-- Settings Modal -->
-    <div id="settingsModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
-        <div class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full transform transition-all duration-300 scale-95 animate-scale">
+
+    <!-- Modal for API Key on Mobile -->
+    <div id="api-key-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-lg p-6 max-w-sm w-full mx-4">
+            <h3 class="text-lg font-semibold mb-2">Enter Groq API Key</h3>
+            <p class="text-sm text-gray-400 mb-4">Please enter your API key to use VenzAi</p>
+            <input id="mobile-api-key" type="password" placeholder="Your API key" class="w-full bg-gray-700 rounded p-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+            <div class="flex justify-end space-x-2">
+                <button id="cancel-api" class="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600">Cancel</button>
+                <button id="save-api" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Camera Modal -->
+    <div id="camera-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-lg p-4 max-w-sm w-full mx-4">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-semibold text-gray-900">Settings</h3>
-                <button id="closeSettingsBtn" class="text-gray-500 hover:text-gray-700">
-                    <i class="fas fa-times"></i>
+                <h3 class="text-lg font-semibold">Take Photo</h3>
+                <button id="close-camera" class="text-gray-400 hover:text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
                 </button>
             </div>
-            
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">AI Model</label>
-                    <select id="modelSelectModal" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-purple-500">
-                        <option value="llama3-8b-8192">Llama3 8B</option>
-                        <option value="llama3-70b-8192">Llama3 70B</option>
-                        <option value="mixtral-8x7b-32768">Mixtral 7B</option>
-                    </select>
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Theme</label>
-                    <select class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-purple-500">
-                        <option>Light</option>
-                        <option>Dark</option>
-                        <option>System</option>
-                    </select>
-                </div>
-                
-                <div class="pt-4 border-t">
-                    <button id="resetApiKeyBtn" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 py-2 px-4 rounded-md transition-colors">
-                        Reset API Key
-                    </button>
-                </div>
+            <div class="camera-preview bg-black rounded-lg overflow-hidden mb-4">
+                <video id="video" autoplay playsinline class="w-full h-64 object-cover" style="transform: rotateY(180deg)"></video>
+                <img id="captured-image" src="" alt="Captured photo" class="hidden w-full h-64 object-cover" style="transform: rotateY(180deg)" src="https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/3496d8b6-2748-4c6a-b6c1-bab0f6021a34.png">
+            </div>
+            <div class="flex space-x-2">
+                <button id="capture-btn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-full">
+                    Capture
+                </button>
+                <button id="use-photo" class="hidden flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-full">
+                    Use Photo
+                </button>
+                <button id="retry-btn" class="hidden flex-1 bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-full">
+                    Retry
+                </button>
             </div>
         </div>
     </div>
-    
+
     <!-- About Modal -->
-    <div id="aboutModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
-        <div class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full transform transition-all duration-300 scale-95 animate-scale">
+    <div id="about-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-lg p-6 max-w-sm w-full mx-4">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-semibold text-gray-900">About VenzAi</h3>
-                <button id="closeAboutBtn" class="text-gray-500 hover:text-gray-700">
-                    <i class="fas fa-times"></i>
+                <h3 class="text-lg font-semibold">About VenzAi</h3>
+                <button id="close-about" class="text-gray-400 hover:text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
                 </button>
             </div>
-            
-            <div class="space-y-4">
+            <div class="space-y-4 text-sm">
                 <div>
-                    <img src="https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/95dbf6ed-596f-458f-94ed-f82c31dd7c20.png" alt="VenzAi logo and interface showcase with modern purple design elements and AI technology visualization" class="w-full h-auto rounded-lg mb-4">
+                    <img src="https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/8c154380-fb2c-4be2-a057-94bf9abc2925.png" alt="VenzAi logo featuring a sleek futuristic robot with glowing blue accents on a dark background" class="w-full rounded-lg mb-4">
                 </div>
-                
-                <p class="text-sm text-gray-700">
-                    VenzAi is a cutting-edge AI chat application powered by Groq's ultra-fast language models. 
-                    With a sleek Telegram-inspired interface, VenzAi brings you next-generation conversational AI.
-                </p>
-                
-                <div class="bg-purple-50 border border-purple-100 rounded-lg p-3">
-                    <h4 class="text-sm font-medium text-purple-700 mb-1">Features</h4>
-                    <ul class="text-xs text-gray-600 space-y-1">
-                        <li class="flex items-start">
-                            <i class="fas fa-check text-purple-500 mr-2 mt-0.5"></i>
-                            <span>Multiple AI models from Groq</span>
-                        </li>
-                        <li class="flex items-start">
-                            <i class="fas fa-check text-purple-500 mr-2 mt-0.5"></i>
-                            <span>Image upload and camera support</span>
-                        </li>
-                        <li class="flex items-start">
-                            <i class="fas fa-check text-purple-500 mr-2 mt-0.5"></i>
-                            <span>Chat history and persistence</span>
-                        </li>
-                        <li class="flex items-start">
-                            <i class="fas fa-check text-purple-500 mr-2 mt-0.5"></i>
-                            <span>Mobile-first responsive design</span>
-                        </li>
-                    </ul>
-                </div>
-                
-                <div class="pt-4 border-t text-center">
-                    <p class="text-xs text-gray-500">Version 1.0.0</p>
+                <p>VenzAi is an advanced AI chatbot powered by Groq's ultra-fast inference engine.</p>
+                <p>Version: 1.0.0</p>
+                <div class="pt-2 border-t border-gray-700">
+                    <p class="text-gray-400">© Venz Developer Ai.</p>
                 </div>
             </div>
         </div>
     </div>
-    
+
     <script>
-        // DOM Elements
-        const sidebarToggle = document.getElementById('sidebarToggle');
+        // Mobile menu toggle
+        const menuButton = document.getElementById('menu-button');
         const sidebar = document.getElementById('sidebar');
-        const messageInput = document.getElementById('messageInput');
-        const sendBtn = document.getElementById('sendBtn');
-        const messagesContainer = document.getElementById('messagesContainer');
-        const fileInput = document.getElementById('fileInput');
-        const cameraInput = document.getElementById('cameraInput');
-        const imageUploadBtn = document.getElementById('imageUploadBtn');
-        const cameraBtn = document.getElementById('cameraBtn');
-        const imagePreviewContainer = document.getElementById('imagePreviewContainer');
-        const previewImage = document.getElementById('previewImage');
-        const removeImageBtn = document.getElementById('removeImageBtn');
-        const newChatBtn = document.getElementById('newChatBtn');
-        const chatHistory = document.getElementById('chatHistory');
-        const apiKeyInput = document.getElementById('apiKeyInput');
-        const saveApiKeyBtn = document.getElementById('saveApiKeyBtn');
-        const apiKeyContainer = document.getElementById('apiKeyContainer');
-        const settingsBtn = document.getElementById('settingsBtn');
-        const settingsModal = document.getElementById('settingsModal');
-        const closeSettingsBtn = document.getElementById('closeSettingsBtn');
-        const modelSelect = document.getElementById('modelSelect');
-        const modelSelectModal = document.getElementById('modelSelectModal');
-        const resetApiKeyBtn = document.getElementById('resetApiKeyBtn');
-        const aboutBtn = document.getElementById('aboutBtn');
-        const aboutModal = document.getElementById('aboutModal');
-        const closeAboutBtn = document.getElementById('closeAboutBtn');
         
-        // Variables
-        let currentChatId = null;
-        let chats = [];
-        let selectedImage = null;
-        let isTyping = false;
+        menuButton.addEventListener('click', () => {
+            sidebar.classList.toggle('hidden');
+            sidebar.classList.toggle('slide-in');
+        });
+
+        // Set chat title
+        const currentChatTitle = document.getElementById('current-chat-title');
         
-        // Initialize the app
-        function init() {
-            // Load saved API key if exists
-            const savedApiKey = localStorage.getItem('venzai_api_key');
-            if (savedApiKey) {
-                apiKeyContainer.classList.add('hidden');
-                apiKeyInput.value = savedApiKey;
+        // Message handling
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-btn');
+        const messagesContainer = document.getElementById('messages');
+        const typingIndicator = document.getElementById('typing-indicator');
+        
+        // Autoresize textarea
+        messageInput.addEventListener('input', () => {
+            messageInput.style.height = 'auto';
+            messageInput.style.height = Math.min(messageInput.scrollHeight, 150) + 'px';
+        });
+        
+        // Send message function
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+            
+            const apiKey = document.getElementById('api-key').value || document.getElementById('mobile-api-key').value;
+            if (!apiKey) {
+                showApiKeyModal();
+                return;
             }
             
-            // Load chat history
-            loadChatHistory();
+            // Add user message
+            addMessage(message, 'user', new Date());
+            messageInput.value = '';
+            messageInput.style.height = 'auto';
             
-            // Create a new chat if no active chat
-            if (!currentChatId) {
-                createNewChat();
+            // Scroll to bottom
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            
+            // Show typing indicator and get AI response
+            typingIndicator.classList.remove('hidden');
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            
+            const model = document.getElementById('model-select').value;
+            
+            try {
+                const response = await getAiResponse(message, apiKey, model);
+                addMessage(response, 'ai', new Date());
+            } catch (error) {
+                addMessage("Sorry, an error occurred. Please check your API key and try again.", 'ai', new Date());
+                console.error(error);
+            } finally {
+                typingIndicator.classList.add('hidden');
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
             }
         }
         
-        // Event Listeners
-        sidebarToggle.addEventListener('click', toggleSidebar);
-        sendBtn.addEventListener('click', sendMessage);
-        messageInput.addEventListener('keypress', (e) => {
+        // Add message to chat
+        function addMessage(content, sender, timestamp) {
+            const messageElement = document.createElement('div');
+            
+            const timeString = formatTime(timestamp);
+            
+            if (sender === 'user') {
+                messageElement.className = 'message flex flex-col space-y-1 max-w-[85%] ml-auto items-end';
+                messageElement.innerHTML = `
+                    <div class="bg-blue-600 text-white p-4 rounded-lg rounded-tr-none">
+                        <p>${content}</p>
+                    </div>
+                    <div class="text-xs text-gray-400 mr-1">${timeString}</div>
+                `;
+            } else {
+                messageElement.className = 'message flex flex-col space-y-1 max-w-[85%]';
+                messageElement.innerHTML = `
+                    <div class="bg-gray-700 text-white p-4 rounded-lg rounded-tl-none">
+                        <p>${content}</p>
+                    </div>
+                    <div class="text-xs text-gray-400 ml-1">${timeString}</div>
+                `;
+            }
+            
+            messagesContainer.appendChild(messageElement);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        // Format time
+        function formatTime(date) {
+            const now = new Date();
+            const diffHours = Math.floor((now - date) / (1000 * 60 * 60));
+            
+            if (diffHours < 24) {
+                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } else {
+                return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+            }
+        }
+        
+        // Get AI response from Groq API
+        async function getAiResponse(message, apiKey, model) {
+            const response = await fetch(`https://api.groq.com/openai/v1/chat/completions`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: model,
+                    messages: [{role: "user", content: message}],
+                    temperature: 0.7
+                })
+            });
+            
+            const data = await response.json();
+            return data.choices[0].message.content;
+        }
+        
+        // Event listeners
+        sendButton.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 sendMessage();
             }
         });
-        imageUploadBtn.addEventListener('click', () => fileInput.click());
-        cameraBtn.addEventListener('click', () => cameraInput.click());
-        fileInput.addEventListener('change', handleImageSelect);
-        cameraInput.addEventListener('change', handleImageSelect);
-        removeImageBtn.addEventListener('click', removeSelectedImage);
-        newChatBtn.addEventListener('click', createNewChat);
-        saveApiKeyBtn.addEventListener('click', saveApiKey);
-        settingsBtn.addEventListener('click', () => settingsModal.classList.remove('hidden'));
-        closeSettingsBtn.addEventListener('click', () => settingsModal.classList.add('hidden'));
-        aboutBtn.addEventListener('click', () => aboutModal.classList.remove('hidden'));
-        closeAboutBtn.addEventListener('click', () => aboutModal.classList.add('hidden'));
-        resetApiKeyBtn.addEventListener('click', resetApiKey);
         
-        // Auto-resize textarea
-        messageInput.addEventListener('input', () => {
-            messageInput.style.height = 'auto';
-            messageInput.style.height = (messageInput.scrollHeight) + 'px';
+        // Attachment handling
+        const attachBtn = document.getElementById('attach-btn');
+        const attachMenu = document.getElementById('attach-menu');
+        const uploadImageBtn = document.getElementById('upload-image');
+        const takePhotoBtn = document.getElementById('take-photo');
+        const fileInput = document.getElementById('file-input');
+        
+        attachBtn.addEventListener('click', () => {
+            attachMenu.classList.toggle('hidden');
         });
         
-        // Initialize
-        init();
-        
-        // Functions
-        function toggleSidebar() {
-            sidebar.classList.toggle('sidebar-open');
-        }
-        
-        function createNewChat() {
-            currentChatId = 'chat-' + Date.now();
-            chats.unshift({
-                id: currentChatId,
-                title: 'New Chat',
-                messages: [],
-                createdAt: new Date().toISOString()
-            });
-            
-            updateChatHistoryUI();
-            renderChatMessages([]);
-            
-            // Auto focus on message input
-            setTimeout(() => {
-                messageInput.focus();
-            }, 100);
-        }
-        
-        function loadChatHistory() {
-            const savedChats = localStorage.getItem('venzai_chats');
-            if (savedChats) {
-                chats = JSON.parse(savedChats);
-                if (chats.length > 0) {
-                    currentChatId = chats[0].id;
-                    renderChatMessages(chats[0].messages);
-                }
+        // Hide menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!attachBtn.contains(e.target) && !attachMenu.contains(e.target)) {
+                attachMenu.classList.add('hidden');
             }
-            updateChatHistoryUI();
-        }
+        });
         
-        function updateChatHistoryUI() {
-            chatHistory.innerHTML = '';
-            
-            chats.forEach(chat => {
-                const chatItem = document.createElement('div');
-                chatItem.className = `p-2 rounded-lg cursor-pointer ${chat.id === currentChatId ? 'bg-gray-800' : 'hover:bg-gray-800'}`;
-                chatItem.innerHTML = `
-                    <div class="flex items-center">
-                        <i class="far fa-comment-dots mr-2 text-purple-400"></i>
-                        <span class="truncate">${chat.title}</span>
-                    </div>
-                `;
-                chatItem.addEventListener('click', () => loadChat(chat.id));
-                chatHistory.appendChild(chatItem);
-            });
-            
-            saveChatsToLocalStorage();
-        }
+        uploadImageBtn.addEventListener('click', () => {
+            fileInput.click();
+        });
         
-        function loadChat(chatId) {
-            currentChatId = chatId;
-            const chat = chats.find(c => c.id === chatId);
-            if (chat) {
-                renderChatMessages(chat.messages);
-                document.getElementById('currentChatTitle').textContent = chat.title;
-            }
-            updateChatHistoryUI();
-            sidebar.classList.remove('sidebar-open');
-        }
-        
-        function renderChatMessages(messages) {
-            messagesContainer.innerHTML = '';
-            
-            if (messages.length === 0) {
-                // Show welcome message if no messages
-                const welcomeMessage = document.createElement('div');
-                welcomeMessage.className = 'chat-message flex justify-center';
-                welcomeMessage.style.animationDelay = '0.2s';
-                welcomeMessage.innerHTML = `
-                    <div class="bg-white p-4 rounded-lg shadow-md w-full">
-                        <img src="https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/6c535c52-8d47-4dd3-a38f-bd49ec944309.png" alt="Welcome to VenzAi - Modern AI chat interface with purple branding and abstract technological elements in the background" class="w-full h-auto rounded mb-3">
-                        <h2 class="text-xl font-bold text-purple-600 mb-2">Welcome to VenzAi!</h2>
-                        <p class="text-gray-700">Start chatting with the AI by typing your message below. You can also upload images or take photos to include them in your conversation.</p>
-                        <div class="mt-4 p-3 bg-purple-50 rounded-lg border border-purple-100">
-                            <p class="text-sm text-gray-600">Don't forget to enter your Groq API key to start using the AI.</p>
-                        </div>
-                    </div>
-                `;
-                messagesContainer.appendChild(welcomeMessage);
-                return;
-            }
-            
-            messages.forEach((message, index) => {
-                const messageDiv = document.createElement('div');
-                messageDiv.className = 'chat-message flex ' + (message.sender === 'user' ? 'justify-end' : 'justify-start');
-                messageDiv.style.animationDelay = `${index * 0.1}s`;
-                
-                if (message.sender === 'user') {
-                    messageDiv.innerHTML = `
-                        <div class="bg-purple-600 text-white p-3 rounded-lg max-w-xs md:max-w-md lg:max-w-lg shadow">
-                            ${message.text}
-                            ${message.image ? `<div class="mt-2"><img src="${message.image}" alt="User uploaded image" class="rounded-lg w-full h-auto"></div>` : ''}
-                        </div>
-                    `;
-                } else {
-                    messageDiv.innerHTML = `
-                        <div class="bg-white p-3 rounded-lg max-w-xs md:max-w-md lg:max-w-lg shadow">
-                            ${message.text}
-                        </div>
-                    `;
-                }
-                
-                messagesContainer.appendChild(messageDiv);
-            });
-            
-            scrollToBottom();
-        }
-        
-        function scrollToBottom() {
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }
-        
-        async function sendMessage() {
-            const messageText = messageInput.value.trim();
-            const apiKey = apiKeyInput.value.trim();
-            
-            if (!messageText && !selectedImage) return;
-            
-            if (!apiKey) {
-                alert('Please enter your Groq API key first');
-                return;
-            }
-            
-            // Add user message to chat
-            const userMessage = {
-                sender: 'user',
-                text: messageText,
-                image: selectedImage,
-                timestamp: new Date().toISOString()
-            };
-            
-            // Find current chat
-            const chatIndex = chats.findIndex(c => c.id === currentChatId);
-            if (chatIndex !== -1) {
-                chats[chatIndex].messages.push(userMessage);
-                
-                // Update chat title if it's the first message
-                if (chats[chatIndex].messages.length === 1) {
-                    chats[chatIndex].title = messageText.substring(0, 30) + (messageText.length > 30 ? '...' : '');
-                }
-                
-                renderChatMessages(chats[chatIndex].messages);
-                updateChatHistoryUI();
-            }
-            
-            // Clear input and selected image
-            messageInput.value = '';
-            messageInput.style.height = 'auto';
-            removeSelectedImage();
-            
-            // Show typing indicator
-            showTypingIndicator();
-            
-            // Call Groq API
-            try {
-                const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${apiKey}`
-                    },
-                    body: JSON.stringify({
-                        model: modelSelect.value,
-                        messages: [
-                            {
-                                role: 'user',
-                                content: messageText
-                            }
-                        ],
-                        temperature: 0.7
-                    })
-                });
-                
-                if (!response.ok) {
-                    throw new Error('API request failed');
-                }
-                
-                const data = await response.json();
-                const aiResponse = data.choices[0].message.content;
-                
-                // Add AI response to chat
-                const aiMessage = {
-                    sender: 'ai',
-                    text: aiResponse,
-                    timestamp: new Date().toISOString()
-                };
-                
-                if (chatIndex !== -1) {
-                    chats[chatIndex].messages.push(aiMessage);
-                    renderChatMessages(chats[chatIndex].messages);
-                    saveChatsToLocalStorage();
-                }
-            } catch (error) {
-                console.error('Error calling Groq API:', error);
-                
-                // Add error message to chat
-                const errorMessage = {
-                    sender: 'ai',
-                    text: `Sorry, I encountered an error: ${error.message}`,
-                    timestamp: new Date().toISOString()
-                };
-                
-                if (chatIndex !== -1) {
-                    chats[chatIndex].messages.push(errorMessage);
-                    renderChatMessages(chats[chatIndex].messages);
-                }
-            } finally {
-                hideTypingIndicator();
-            }
-        }
-        
-        function showTypingIndicator() {
-            isTyping = true;
-            
-            const typingDiv = document.createElement('div');
-            typingDiv.className = 'chat-message flex justify-start';
-            typingDiv.id = 'typingIndicator';
-            typingDiv.innerHTML = `
-                <div class="bg-white p-3 rounded-lg shadow">
-                    <div class="typing-indicator">
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                    </div>
-                </div>
-            `;
-            
-            messagesContainer.appendChild(typingDiv);
-            scrollToBottom();
-        }
-        
-        function hideTypingIndicator() {
-            isTyping = false;
-            const typingIndicator = document.getElementById('typingIndicator');
-            if (typingIndicator) {
-                typingIndicator.remove();
-            }
-        }
-        
-        function handleImageSelect(e) {
+        fileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
                 const reader = new FileReader();
                 reader.onload = (event) => {
-                    selectedImage = event.target.result;
-                    previewImage.src = selectedImage;
-                    imagePreviewContainer.classList.remove('hidden');
+                    addImageMessage(event.target.result, 'user');
                 };
                 reader.readAsDataURL(file);
             }
+        });
+        
+        function addImageMessage(imageSrc, sender) {
+            const messageElement = document.createElement('div');
+            const timestamp = new Date();
+            
+            if (sender === 'user') {
+                messageElement.className = 'message flex flex-col space-y-1 max-w-[85%] ml-auto items-end';
+                messageElement.innerHTML = `
+                    <div class="overflow-hidden rounded-lg">
+                        <img src="${imageSrc}" alt="User uploaded image" class="max-w-full h-auto rounded-lg" style="max-height: 400px;">
+                    </div>
+                    <div class="text-xs text-gray-400 mr-1">${formatTime(timestamp)}</div>
+                `;
+            } else {
+                messageElement.className = 'message flex flex-col space-y-1 max-w-[85%]';
+                messageElement.innerHTML = `
+                    <div class="overflow-hidden rounded-lg">
+                        <img src="${imageSrc}" alt="AI generated image" class="max-w-full h-auto rounded-lg" style="max-height: 400px;">
+                    </div>
+                    <div class="text-xs text-gray-400 ml-1">${formatTime(timestamp)}</div>
+                `;
+            }
+            
+            messagesContainer.appendChild(messageElement);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
         
-        function removeSelectedImage() {
-            selectedImage = null;
-            previewImage.src = '#';
-            imagePreviewContainer.classList.add('hidden');
-            fileInput.value = '';
-            cameraInput.value = '';
+        // Camera handling
+        const cameraModal = document.getElementById('camera-modal');
+        const video = document.getElementById('video');
+        const captureBtn = document.getElementById('capture-btn');
+        const usePhotoBtn = document.getElementById('use-photo');
+        const retryBtn = document.getElementById('retry-btn');
+        const capturedImage = document.getElementById('captured-image');
+        const closeCamera = document.getElementById('close-camera');
+        
+        takePhotoBtn.addEventListener('click', () => {
+            attachMenu.classList.add('hidden');
+            cameraModal.classList.remove('hidden');
+            
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+                    .then(stream => {
+                        video.srcObject = stream;
+                        captureBtn.disabled = false;
+                    })
+                    .catch(error => {
+                        console.error("Error accessing camera:", error);
+                    });
+            }
+        });
+        
+        captureBtn.addEventListener('click', () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            capturedImage.src = canvas.toDataURL('image/jpeg');
+            capturedImage.classList.remove('hidden');
+            video.classList.add('hidden');
+            
+            captureBtn.classList.add('hidden');
+            usePhotoBtn.classList.remove('hidden');
+            retryBtn.classList.remove('hidden');
+        });
+        
+        retryBtn.addEventListener('click', () => {
+            capturedImage.src = '';
+            capturedImage.classList.add('hidden');
+            video.classList.remove('hidden');
+            
+            captureBtn.classList.remove('hidden');
+            usePhotoBtn.classList.add('hidden');
+            retryBtn.classList.add('hidden');
+        });
+        
+        usePhotoBtn.addEventListener('click', () => {
+            addImageMessage(capturedImage.src, 'user');
+            closeCameraModal();
+        });
+        
+        closeCamera.addEventListener('click', closeCameraModal);
+        
+        function closeCameraModal() {
+            cameraModal.classList.add('hidden');
+            const stream = video.srcObject;
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+            }
+            
+            capturedImage.src = '';
+            capturedImage.classList.add('hidden');
+            video.classList.remove('hidden');
+            
+            captureBtn.classList.remove('hidden');
+            usePhotoBtn.classList.add('hidden');
+            retryBtn.classList.add('hidden');
         }
         
-        function saveApiKey() {
-            const apiKey = apiKeyInput.value.trim();
-            if (apiKey) {
-                localStorage.setItem('venzai_api_key', apiKey);
-                apiKeyContainer.classList.add('hidden');
-                // Pulse the settings button to indicate success
-                settingsBtn.classList.add('pulse');
-                setTimeout(() => {
-                    settingsBtn.classList.remove('pulse');
-                }, 2000);
+        // API Key Modal (for mobile)
+        const apiKeyModal = document.getElementById('api-key-modal');
+        const mobileApiKeyInput = document.getElementById('mobile-api-key');
+        const saveApiBtn = document.getElementById('save-api');
+        const cancelApiBtn = document.getElementById('cancel-api');
+        
+        function showApiKeyModal() {
+            apiKeyModal.classList.remove('hidden');
+            const savedKey = localStorage.getItem('venzai-api-key');
+            if (savedKey) {
+                mobileApiKeyInput.value = savedKey;
             }
         }
         
-        function resetApiKey() {
-            localStorage.removeItem('venzai_api_key');
-            apiKeyInput.value = '';
-            apiKeyContainer.classList.remove('hidden');
-            settingsModal.classList.add('hidden');
-        }
+        saveApiBtn.addEventListener('click', () => {
+            const apiKey = mobileApiKeyInput.value.trim();
+            if (apiKey) {
+                document.getElementById('api-key').value = apiKey;
+                localStorage.setItem('venzai-api-key', apiKey);
+                apiKeyModal.classList.add('hidden');
+            }
+        });
         
-        function saveChatsToLocalStorage() {
-            localStorage.setItem('venzai_chats', JSON.stringify(chats));
-        }
+        cancelApiBtn.addEventListener('click', () => {
+            apiKeyModal.classList.add('hidden');
+        });
+        
+        // About Modal
+        const aboutModal = document.getElementById('about-modal');
+        const aboutBtn = document.getElementById('about-btn');
+        const closeAbout = document.getElementById('close-about');
+        
+        aboutBtn.addEventListener('click', () => {
+            aboutModal.classList.remove('hidden');
+        });
+        
+        closeAbout.addEventListener('click', () => {
+            aboutModal.classList.add('hidden');
+        });
+        
+        // New Chat
+        const newChatBtn = document.getElementById('new-chat-btn');
+        newChatBtn.addEventListener('click', () => {
+            messagesContainer.innerHTML = `
+                <div class="message flex flex-col space-y-1 max-w-[85%]">
+                    <div class="bg-gray-700 text-white p-4 rounded-lg rounded-tl-none">
+                        <p>Hai! Saya VenzAi, asisten AI Anda. Bagaimana saya bisa membantu Anda hari ini?</p>
+                    </div>
+                    <div class="text-xs text-gray-400 ml-1">Just now</div>
+                </div>
+            `;
+            currentChatTitle.textContent = 'New Chat';
+        });
+        
+        // Load saved API key if exists
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedKey = localStorage.getItem('venzai-api-key');
+            if (savedKey) {
+                document.getElementById('api-key').value = savedKey;
+            }
+            
+            // Show API key modal on mobile if no key
+            if (window.innerWidth < 768 && !savedKey) {
+                showApiKeyModal();
+            }
+        });
     </script>
 </body>
 </html>
-
